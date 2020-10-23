@@ -51,6 +51,10 @@ loop:
 	B loop
 	
 checkPB:
+	MOV R0, #0x00000010
+	BL HEX_flood_ASM
+	MOV R0, #0x00000020
+	BL HEX_flood_ASM
 	BL read_PB_data_ASM
 	CMP R2, #1
 	BLEQ writeHEX0
@@ -201,10 +205,7 @@ clear:
 	
 HEX_write_ASM:	
 	MOV R10, R0				// Store copy of R0 (HEX_t)
-	MOV R9, R1				// Store copy of R1 (char val)
-	PUSH {R1-R8,LR}
-	BL HEX_clear_ASM		// Clear the HEX displays before writing to it
-	POP {R1-R8,LR}			
+	MOV R9, R1				// Store copy of R1 (char val)		
 	MOV R0, R10				// Restore the initial value of R0 before the clear
 
 	PUSH {R1-R8,LR}
