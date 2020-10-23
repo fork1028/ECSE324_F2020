@@ -47,14 +47,10 @@ _start:
 	LDR R4, =HEX4_5_BASE // load HEX4_5
 
 loop:
-	B checkSW9
+	BL checkSW9
 	B loop
 	
 checkPB:
-	MOV R0, #0x00000010
-	BL HEX_flood_ASM
-	MOV R0, #0x00000020
-	BL HEX_flood_ASM
 	BL read_PB_data_ASM
 	CMP R2, #1
 	BLEQ writeHEX0
@@ -71,38 +67,55 @@ checkSW9:
 	CMP R0, #0x200
 	BLEQ clearALL
 	BLNE checkPB
+	BX LR
 	
 writeHEX0:
+	MOV R0, #0x00000010
+	BL HEX_flood_ASM
+	MOV R0, #0x00000020
+	BL HEX_flood_ASM
 	BL read_slider_switches_ASM
 	BL write_LEDs_ASM
 	MOV R1, R0
 	MOV R0, #0x00000001
 	BL HEX_write_ASM
-	BX LR
+	B checkPB
 	
 writeHEX1:
+	MOV R0, #0x00000010
+	BL HEX_flood_ASM
+	MOV R0, #0x00000020
+	BL HEX_flood_ASM
 	BL read_slider_switches_ASM
 	BL write_LEDs_ASM
 	MOV R1, R0
 	MOV R0, #0x00000002
 	BL HEX_write_ASM
-	BX LR
+	B checkPB
 	
 writeHEX2:
+	MOV R0, #0x00000010
+	BL HEX_flood_ASM
+	MOV R0, #0x00000020
+	BL HEX_flood_ASM
 	BL read_slider_switches_ASM
 	BL write_LEDs_ASM
 	MOV R1, R0
 	MOV R0, #0x00000004
 	BL HEX_write_ASM
-	BX LR
+	B checkPB
 	
 writeHEX3:
+	MOV R0, #0x00000010
+	BL HEX_flood_ASM
+	MOV R0, #0x00000020
+	BL HEX_flood_ASM
 	BL read_slider_switches_ASM
 	BL write_LEDs_ASM
 	MOV R1, R0
 	MOV R0, #0x00000008
 	BL HEX_write_ASM
-	BX LR
+	B checkPB
 	
 clearALL:
 	MOV R0, #0x00000001
@@ -206,6 +219,10 @@ clear:
 HEX_write_ASM:	
 	MOV R10, R0				// Store copy of R0 (HEX_t)
 	MOV R9, R1				// Store copy of R1 (char val)		
+	PUSH {R1-R8,LR}
+	BL HEX_clear_ASM		// Clear the HEX displays before writing to it
+	POP {R1-R8,LR}	
+	
 	MOV R0, R10				// Restore the initial value of R0 before the clear
 
 	PUSH {R1-R8,LR}
@@ -239,7 +256,7 @@ write:
 	ORR R2, R2, R7		// OR the current HEX values of the board with R7 to write the HEX value onto that HEX address
 	STR R2, [R1]		// Store the new HEX values to the address. This effectively changes the HEX on the board
 	BX LR
-
+	
 done:
 	POP {R1-R8, LR}
 	BX LR
