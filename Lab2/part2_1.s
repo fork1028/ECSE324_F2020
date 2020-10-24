@@ -29,6 +29,7 @@ _start:
 ARM_TIM_config_ASM:
 	STR R1, [R2, #8] // write the bits to control register
 	
+	
 loop:
 	BL ARM_TIM_read_INT_ASM
 	CMP R4, #1
@@ -41,9 +42,16 @@ check:
 	MOVEQ R12, #0
 	MOV R1, R12
 	ADDS R12, R12, #1
+	MOV R0, #0x00000002
+	BL HEX_clear_ASM
+	MOV R0, #0x00000004
+	BL HEX_clear_ASM
+	MOV R0, #0x00000008
+	BL HEX_clear_ASM
 	MOV R0, #0x00000001
 	BL HEX_write_ASM
 	B loop
+
 
 // read F bit
 ARM_TIM_read_INT_ASM:
@@ -117,9 +125,6 @@ writeloop:
 	B writeloop
 
 write:		
-	//CMP R3, #3			// Check if we're at the HEX 4 or 5
-	//SUBGT R3, R3, #4	// Sets the counter to 0 or 1 when it's > 3 (the counter refers to HEX 4-5 when it's 0-1 after this is called)
-	//LDRGT R1, =HEX4_5_BASE	// Set it to the the other disp HEX
 	LDR R2, [R1]		// Set R2 to the value of R1 to get the value of the hex at that time
 	LDR R7, [R5]		// Set R7 to the proper HEX LED value (e.g. 0x0000004F = 3 in HEX LED)
 	LSL R6, R3, #3		// Multiply the counter by 2^3 (8 bits)
@@ -129,9 +134,6 @@ write:
 	BX LR
 	
 Clear_DONE:	POP {R1-R8, LR}
-			BX LR
-			
-Flood_DONE:	POP {R1-R8, LR}
 			BX LR
 			
 Write_DONE: POP {R1-R8, LR}
