@@ -45,6 +45,10 @@ _start:
 	//MOV R1, #9
 	LDR R3, =HEX0_3_BASE // load HEX0_3
 	LDR R4, =HEX4_5_BASE // load HEX4_5
+	MOV R0, #0x00000010
+	BL HEX_flood_ASM
+	MOV R0, #0x00000020
+	BL HEX_flood_ASM
 
 loop:
 	BL checkSW9
@@ -65,15 +69,12 @@ checkSW9:
 	BL read_slider_switches_ASM
 	BL write_LEDs_ASM
 	CMP R0, #0x200
+	MOV R12, #0 // counter
 	BLEQ clearALL
 	BLNE checkPB
 	BX LR
 	
 writeHEX0:
-	MOV R0, #0x00000010
-	BL HEX_flood_ASM
-	MOV R0, #0x00000020
-	BL HEX_flood_ASM
 	BL read_slider_switches_ASM
 	BL write_LEDs_ASM
 	MOV R1, R0
@@ -82,10 +83,6 @@ writeHEX0:
 	B checkPB
 	
 writeHEX1:
-	MOV R0, #0x00000010
-	BL HEX_flood_ASM
-	MOV R0, #0x00000020
-	BL HEX_flood_ASM
 	BL read_slider_switches_ASM
 	BL write_LEDs_ASM
 	MOV R1, R0
@@ -94,10 +91,6 @@ writeHEX1:
 	B checkPB
 	
 writeHEX2:
-	MOV R0, #0x00000010
-	BL HEX_flood_ASM
-	MOV R0, #0x00000020
-	BL HEX_flood_ASM
 	BL read_slider_switches_ASM
 	BL write_LEDs_ASM
 	MOV R1, R0
@@ -106,10 +99,6 @@ writeHEX2:
 	B checkPB
 	
 writeHEX3:
-	MOV R0, #0x00000010
-	BL HEX_flood_ASM
-	MOV R0, #0x00000020
-	BL HEX_flood_ASM
 	BL read_slider_switches_ASM
 	BL write_LEDs_ASM
 	MOV R1, R0
@@ -118,6 +107,8 @@ writeHEX3:
 	B checkPB
 	
 clearALL:
+	//CMP R12, #6
+	//BX LR
 	MOV R0, #0x00000001
 	BL HEX_clear_ASM
 	MOV R0, #0x00000002
@@ -130,6 +121,7 @@ clearALL:
 	BL HEX_clear_ASM
 	MOV R0, #0x00000020
 	BL HEX_clear_ASM
+	ADDS R12, R12, #1
 	B clearALL
 	
 read_slider_switches_ASM:
@@ -219,9 +211,9 @@ clear:
 HEX_write_ASM:	
 	MOV R10, R0				// Store copy of R0 (HEX_t)
 	MOV R9, R1				// Store copy of R1 (char val)		
-	PUSH {R1-R8,LR}
+	//PUSH {R2-R8,LR}
 	BL HEX_clear_ASM		// Clear the HEX displays before writing to it
-	POP {R1-R8,LR}	
+	//POP {R2-R8,LR}	
 	
 	MOV R0, R10				// Restore the initial value of R0 before the clear
 
