@@ -45,14 +45,21 @@ _start:
 	//MOV R1, #9
 	LDR R3, =HEX0_3_BASE // load HEX0_3
 	LDR R4, =HEX4_5_BASE // load HEX4_5
+
+loop:
+	BL read_slider_switches_ASM
+	BL write_LEDs_ASM
+	CMP R0, #0x200
+	BEQ clearALL
+	BNE else
+
+else:
 	MOV R0, #0x00000010
 	BL HEX_flood_ASM
 	MOV R0, #0x00000020
 	BL HEX_flood_ASM
-
-loop:
-	BL checkSW9
-	B loop
+	BL read_slider_switches_ASM
+	B checkPB
 	
 checkPB:
 	BL read_PB_data_ASM
@@ -64,19 +71,10 @@ checkPB:
 	BLEQ writeHEX2
 	CMP R2, #8
 	BLEQ writeHEX3
-
-checkSW9:
-	BL read_slider_switches_ASM
-	BL write_LEDs_ASM
-	CMP R0, #0x200
-	MOV R12, #0 // counter
-	BLEQ clearALL
-	BLNE checkPB
-	BX LR
+	B loop
 	
 writeHEX0:
 	BL read_slider_switches_ASM
-	BL write_LEDs_ASM
 	MOV R1, R0
 	MOV R0, #0x00000001
 	BL HEX_write_ASM
@@ -84,7 +82,7 @@ writeHEX0:
 	
 writeHEX1:
 	BL read_slider_switches_ASM
-	BL write_LEDs_ASM
+	//BL write_LEDs_ASM
 	MOV R1, R0
 	MOV R0, #0x00000002
 	BL HEX_write_ASM
@@ -92,7 +90,7 @@ writeHEX1:
 	
 writeHEX2:
 	BL read_slider_switches_ASM
-	BL write_LEDs_ASM
+	//BL write_LEDs_ASM
 	MOV R1, R0
 	MOV R0, #0x00000004
 	BL HEX_write_ASM
@@ -100,15 +98,13 @@ writeHEX2:
 	
 writeHEX3:
 	BL read_slider_switches_ASM
-	BL write_LEDs_ASM
+	//BL write_LEDs_ASM
 	MOV R1, R0
 	MOV R0, #0x00000008
 	BL HEX_write_ASM
 	B checkPB
 	
 clearALL:
-	//CMP R12, #6
-	//BX LR
 	MOV R0, #0x00000001
 	BL HEX_clear_ASM
 	MOV R0, #0x00000002
@@ -121,8 +117,7 @@ clearALL:
 	BL HEX_clear_ASM
 	MOV R0, #0x00000020
 	BL HEX_clear_ASM
-	ADDS R12, R12, #1
-	B clearALL
+	B loop
 	
 read_slider_switches_ASM:
 	LDR R1, =SW_MEMORY
@@ -134,86 +129,69 @@ write_LEDs_ASM:
     STR R0, [R1]
     BX  LR
 	
-HEX_flood_ASM:
-	PUSH {R1-R8, LR}
-	MOV R1, #0 // loop counter
+HEX_flood_ASM:			
 
-floodloop:
-	CMP R1, #6 // check if already iterated all hex
-	BEQ done // if is, terminates
-	ANDS R7, R0, #1 // and hex parameter with 00000001
-	CMP R7, #1 // check if the last bit is 1
-	BLEQ flood
-	LSR R0, R0, #1 // shift the hex parameter by 1 bit
-	ADDS R1, R1, #1 // increment index for hex going to be flooded
-	B floodloop // loop back
- 
-flood:
-	LDR R2, [R3] // load hex0_3 address to R2
-	MOV R5, #0x000000FF 
-	CMP R1, #0 // check if index == 0
-	ROREQ R5, R5, #0 // rotate by 'index' bits
-	CMP R1, #1
-	ROREQ R5, R5, #24
-	CMP R1, #2
-	ROREQ R5, R5, #16
-	CMP R1, #3
-	ROREQ R5, R5, #8
-	CMP R1, #3 // check if it is looping the first four hex
-	ORRLE R2, R2, R5 // if is, logical OR the current hex with FF
-	STRLE R2, [R3] // write to hex
-	LDR R2, [R4]
-	CMP R1, #4
-	ROREQ R5, R5, #0
-	CMP R1, #5
-	ROREQ R5, R5, #24
-	ORR R2, R2, R5
-	STR R2, [R4]
-	BX LR
+			PUSH {R1-R8,LR}		
+			LDR R1, =HEX0_3_BASE	
+			MOV R3, #0	
+			
+Flood_Loop:	CMP R3, #6
+			BEQ Flood_DONE
+			AND R4, R0, #1
+			CMP R4, #1
+			BLEQ Flood
+
+			LSR R0, R0, #1 	
+			ADD R3, R3, #1
+			B Flood_Loop
+
+Flood:		CMP R3, #3	
+			SUBGT R3, R3, #4
+			LDRGT R1, =HEX4_5_BASE
+			LDR R2, [R1]
+			LDR R5, =FLOOD_N	// Difference here: Sets R5 to FLOOD_N variable which is the inverse of CLEAR_N
+			LSL R6, R3, #2
+			LDR R5, [R5, R6]
+			ORR R2, R2, R5		// Difference here: We use ORR to OR R2 and R5. This will turn on all the segments at that particular hex since everything else is Zeros.
+			STR R2, [R1]
+			BX LR
  
 HEX_clear_ASM:
-	PUSH {R1-R8, LR}
-	MOV R1, #0 // loop counter
-
-clearloop:
-	CMP R1, #6 // check if already iterated all hex
-	BEQ done // if is, terminates
-	ANDS R7, R0, #1 // and hex parameter with 00000001
-	CMP R7, #1 // check if the last bit is 1
+	PUSH {R1-R8,LR}
+	LDR R1, =HEX0_3_BASE	// Set R1 to HEX0-3 address
+	MOV R3, #0			// Index of which hex we're at
+			
+clearloop:	
+	CMP R3, #6			// Check if when we're done iterating
+	BEQ Clear_DONE
+	AND R4, R0, #1		// Checks if the bit we're at is hot encoded
+	CMP R4, #1			// If yes, go to Clear (This branch clears the hex)
 	BLEQ clear
-	LSR R0, R0, #1 // shift the hex parameter by 1 bit
-	ADDS R1, R1, #1 // increment index for hex going to be flooded
-	B clearloop // loop back
- 
-clear:
-	LDR R2, [R3] // load hex0_3 address to R2
-	MOV R5, #0xFFFFFF00
-	CMP R1, #0 // check if index == 0
-	ROREQ R5, R5, #0 // rotate by 'index' bits
-	CMP R1, #1
-	ROREQ R5, R5, #24
-	CMP R1, #2
-	ROREQ R5, R5, #16
-	CMP R1, #3
-	ROREQ R5, R5, #8
-	CMP R1, #3 // check if it is looping the first four hex
-	ANDLE R2, R2, R5 // if is, logical OR the current hex with FF
-	STRLE R2, [R3] // write to hex
-	LDR R2, [R4]
-	CMP R1, #4
-	ROREQ R5, R5, #0
-	CMP R1, #5
-	ROREQ R5, R5, #24
-	AND R2, R2, R5
-	STR R2, [R4]
+
+	LSR R0, R0, #1 		// Shift the input right by 1 bit since the inputs is hot encoded
+	// So we move on to the next bit to check if that value (HEX) is 1 on line 19
+	ADD R3, R3, #1		// Increment counter (index)
+	B clearloop
+
+clear:		
+	CMP R3, #3			// Check if we're at the HEX 4 or 5
+	SUBGT R3, R3, #4	// Sets the counter to 0 or 1 when it's > 3 (the counter refers to HEX 4-5 when it's 0-1 after this is called)
+	LDRGT R1, =HEX4_5_BASE	// Set it to the the other disp HEX
+	LDR R2, [R1]		// Set R2 to address of HEX 4-5
+	LDR R5, =CLEAR_N	// Sets R5 to Clear_N variable
+	LSL R6, R3, #2		// Multiply R3 with 4
+	LDR R5, [R5, R6]	// Load R5 with the value at =Light + offset (R3*4)
+	// This mimicks the Rotate Left method that doesn't exist
+	AND R2, R2, R5		// AND R5 with the current HEX value to clear that particular HEX
+	STR R2, [R1]		// Store the result to change it physically
 	BX LR
 	
 HEX_write_ASM:	
 	MOV R10, R0				// Store copy of R0 (HEX_t)
 	MOV R9, R1				// Store copy of R1 (char val)		
-	//PUSH {R2-R8,LR}
+	PUSH {R2-R8,LR}
 	BL HEX_clear_ASM		// Clear the HEX displays before writing to it
-	//POP {R2-R8,LR}	
+	POP {R2-R8,LR}	
 	
 	MOV R0, R10				// Restore the initial value of R0 before the clear
 
@@ -227,7 +205,7 @@ HEX_write_ASM:
 
 writeloop:	
 	CMP R3, #6			// Checks when we're done iterating		
-	BEQ done
+	BEQ Write_DONE
 	AND R4, R0, #1		// Checks if the HEX needs to be written with One hot encoded bit
 	CMP R4, #1
 	BLEQ write
@@ -249,9 +227,14 @@ write:
 	STR R2, [R1]		// Store the new HEX values to the address. This effectively changes the HEX on the board
 	BX LR
 	
-done:
-	POP {R1-R8, LR}
-	BX LR
+Clear_DONE:	POP {R1-R8, LR}
+			BX LR
+			
+Flood_DONE:	POP {R1-R8, LR}
+			BX LR
+			
+Write_DONE: POP {R1-R8, LR}
+			BX LR
 
 // PUSHBUTTONS
 
@@ -299,5 +282,15 @@ disable_PB_INT_ASM:
 	BIC R2, R2, R0										
 	STR R2, [R1]				
 	BX LR
+	
+CLEAR_N:	.word 0xFFFFFF00
+			.word 0xFFFF00FF
+			.word 0xFF00FFFF
+			.word 0x00FFFFFF
+FLOOD_N:	.word 0x000000FF
+			.word 0x0000FF00
+			.word 0x00FF0000
+			.word 0xFF000000
+
 
 .end
