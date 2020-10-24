@@ -30,17 +30,30 @@ _start:
 	MOV R8, #0 // minute loop counter
 	MOV R9, #0 // start index
 
-// config the timer
-//ARM_TIM_config_ASM:
-	//STR R1, [R2, #8] // write the bits to control register
+//config the timer
+ARM_TIM_config_ASM:
+	STR R1, [R2, #8] // write the bits to control register
 	
 loop:
 	BL read_PB_edgecp_ASM
-
+	CMP R11, #1 // START is released
+	MOVEQ R9, #1 // start the timer
+	CMP R11, #3 // STOP is released
+	MOVEQ R9, #0 // stop the timer
+	CMP R11, #7 // RESET is released
+	MOVEQ R9, #0
+	MOVEQ R7, #0
+	MOVEQ R8, #0
+	MOVEQ R12, #0
+	BEQ writeTime
+	BL ARM_TIM_read_INT_ASM
+	CMP R4, #1
+	BEQ checkF
 	B loop
 	
 	
 checkF:
+	MOV R11, #0
 	CMP R9, #1 // check if start index is 1
 	BNE loop
 	BL ARM_TIM_clear_INT_ASM
@@ -688,7 +701,7 @@ PB_data_is_pressed_ASM:
 
 read_PB_edgecp_ASM: 
 	LDR R1, =PB_EDGE 
-	LDR R0, [R1]
+	LDR R11, [R1]
 	BX LR
 
 PB_edgecp_is_pressed_ASM: 
