@@ -62,15 +62,24 @@ else:
 	B checkPB
 	
 checkPB:
-	BL read_PB_data_ASM
-	CMP R2, #1
+	BL read_PB_edgecp_ASM
+	CMP R0, #1
+	BLEQ PB_clear_edgecp_ASM
 	BLEQ writeHEX0
-	CMP R2, #2
+	
+	CMP R0, #2
+	BLEQ PB_clear_edgecp_ASM
 	BLEQ writeHEX1
-	CMP R2, #4
+	
+	CMP R0, #4
+	BLEQ PB_clear_edgecp_ASM
 	BLEQ writeHEX2
-	CMP R2, #8
+	
+	CMP R0, #8
+	BLEQ PB_clear_edgecp_ASM
 	BLEQ writeHEX3
+	
+
 	B loop
 	
 writeHEX0:
@@ -239,49 +248,63 @@ Write_DONE: POP {R1-R8, LR}
 // PUSHBUTTONS
 
 read_PB_data_ASM:
-	LDR R1, =PB_DATA	
-	LDR R2, [R1]			
-	BX LR
+        PUSH {R1, LR}
+        LDR R1, =PB_DATA
+		LDR R0, [R1]
+        POP {R1, LR}
+        BX LR
 
 PB_data_is_pressed_ASM:
-	LDR R1, =PB_DATA	
-	LDR R2, [R1]				
-	AND R3, R2, R0
-	CMP R3, R0
-	MOVEQ R0, #1				
-	MOVNE R0, #0				
-	BX LR
+        PUSH {R1, R2}
+        LDR R1, =PB_DATA
+        LDR R2, [R1]
+		TST R2, R0
+		MOVEQ R0, #0
+		MOVNE R0, #1
+        POP {R1, R2}
+        BX LR
 
-read_PB_edgecp_ASM: 
-	LDR R1, =PB_EDGE 
-	LDR R0, [R1]
-	BX LR
+read_PB_edgecp_ASM:
+        PUSH {R1}
+        LDR R1, =PB_EDGE
+        LDR R0, [R1]
+        POP {R1}
+        BX LR
 
-PB_edgecp_is_pressed_ASM: 
-	LDR R1, =PB_EDGE
-	LDR R2, [R1]	
-	AND R3, R2, R0
-	CMP R3, R0
-	MOVEQ R0, #1
-	MOVNE R0, #0
-	BX LR
+PB_edgecp_is_pressed_ASM:
+        PUSH {R1, R2}
+        LDR R1, =PB_EDGE
+        LDR R2, [R1]
+		TST R2, R0
+		MOVEQ R0, #0
+		MOVNE R0, #1
+        POP {R1, R2}
+        BX LR
 
 PB_clear_edgecp_ASM:
-	LDR R1, =PB_EDGE
-	STR R0, [R1]  //Performing a write operation to theEdgecaptureregister sets all bits in the register to 0, and clears any associated interrupts
-	BX LR
+        PUSH {R1}
+        LDR R1, =PB_EDGE
+        STR R0, [R1]
+        POP {R1}
+        BX LR
 
-enable_PB_INT_ASM: 
-	LDR R1, =PB_MASK
-	STR R0, [R1]				
-	BX LR
+enable_PB_INT_ASM:
+        PUSH {R1, R2}
+        LDR R1, =PB_MASK
+        LDR R2, [R1]
+        ORR R2, R2, R0
+        STR R2, [R1]
+        POP {R1, R2}
+        BX LR
 
-disable_PB_INT_ASM: 
-	LDR R1, =PB_MASK			
-	LDR R2, [R1]				
-	BIC R2, R2, R0										
-	STR R2, [R1]				
-	BX LR
+disable_PB_INT_ASM:
+        PUSH {R1, R2}
+        LDR R1, =PB_MASK
+        LDR R2, [R1]
+        BIC R2, R2, R0
+        STR R2, [R1]
+        POP {R1, R2}
+        BX LR
 	
 CLEAR_N:	.word 0xFFFFFF00
 			.word 0xFFFF00FF
