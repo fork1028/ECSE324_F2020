@@ -38,13 +38,15 @@ loop:
 	BL read_PB_edgecp_ASM
 	CMP R11, #1 // START is released
 	MOVEQ R9, #1 // start the timer
-	CMP R11, #3 // STOP is released
+	CMP R11, #2 // STOP is released
 	MOVEQ R9, #0 // stop the timer
+	BLEQ PB_clear_edgecp_ASM
 	CMP R11, #7 // RESET is released
 	MOVEQ R9, #0
 	MOVEQ R7, #0
 	MOVEQ R8, #0
 	MOVEQ R12, #0
+	BLEQ PB_clear_edgecp_ASM
 	BEQ writeTime
 	BL ARM_TIM_read_INT_ASM
 	CMP R4, #1
@@ -685,50 +687,66 @@ Write_DONE: POP {R1-R8, LR}
 			
 // PUSHBUTTONS
 
+
 read_PB_data_ASM:
-	LDR R1, =PB_DATA	
-	LDR R0, [R1]			
-	BX LR
+        PUSH {R1, LR}
+        LDR R1, =PB_DATA
+		LDR R0, [R1]
+        POP {R1, LR}
+        BX LR
 
 PB_data_is_pressed_ASM:
-	LDR R1, =PB_DATA	
-	LDR R2, [R1]				
-	AND R3, R2, R0
-	CMP R3, R0
-	MOVEQ R0, #1				
-	MOVNE R0, #0				
-	BX LR
+        PUSH {R1, R2}
+        LDR R1, =PB_DATA
+        LDR R2, [R1]
+		TST R2, R0
+		MOVEQ R0, #0
+		MOVNE R0, #1
+        POP {R1, R2}
+        BX LR
 
-read_PB_edgecp_ASM: 
-	LDR R1, =PB_EDGE 
-	LDR R11, [R1]
-	BX LR
+read_PB_edgecp_ASM:
+        PUSH {R1}
+        LDR R1, =PB_EDGE
+        LDR R0, [R1]
+		MOV R11, R0
+        POP {R1}
+        BX LR
 
-PB_edgecp_is_pressed_ASM: 
-	LDR R1, =PB_EDGE
-	LDR R2, [R1]	
-	AND R3, R2, R0
-	CMP R3, R0
-	MOVEQ R0, #1
-	MOVNE R0, #0
-	BX LR
+PB_edgecp_is_pressed_ASM:
+        PUSH {R1, R2}
+        LDR R1, =PB_EDGE
+        LDR R2, [R1]
+		TST R2, R0
+		MOVEQ R0, #0
+		MOVNE R0, #1
+        POP {R1, R2}
+        BX LR
 
 PB_clear_edgecp_ASM:
-	LDR R1, =PB_EDGE
-	STR R0, [R1]  //Performing a write operation to theEdgecaptureregister sets all bits in the register to 0, and clears any associated interrupts
-	BX LR
+        PUSH {R1}
+        LDR R1, =PB_EDGE
+        STR R0, [R1]
+        POP {R1}
+        BX LR
 
-enable_PB_INT_ASM: 
-	LDR R1, =PB_MASK
-	STR R0, [R1]				
-	BX LR
+enable_PB_INT_ASM:
+        PUSH {R1, R2}
+        LDR R1, =PB_MASK
+        LDR R2, [R1]
+        ORR R2, R2, R0
+        STR R2, [R1]
+        POP {R1, R2}
+        BX LR
 
-disable_PB_INT_ASM: 
-	LDR R1, =PB_MASK			
-	LDR R2, [R1]				
-	BIC R2, R2, R0										
-	STR R2, [R1]				
-	BX LR
+disable_PB_INT_ASM:
+        PUSH {R1, R2}
+        LDR R1, =PB_MASK
+        LDR R2, [R1]
+        BIC R2, R2, R0
+        STR R2, [R1]
+        POP {R1, R2}
+        BX LR
 	
 			
 NUM:		
