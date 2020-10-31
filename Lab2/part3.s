@@ -73,6 +73,8 @@ IDLE:
 	MOVEQ R8, #0
 	MOVEQ R12, #0
 	BEQ writeTime
+	LDR R3, =tim_int_flag
+	LDR R4, [R3]
 	BL ARM_TIM_read_INT_ASM
 	CMP R4, #1
 	BEQ checkF
@@ -731,10 +733,7 @@ UNEXPECTED_pb:
     BNE UNEXPECTED_pb      // if not recognized, stop here
     BL KEY_ISR
 //timer_check:
-//    CMP R5, #29
-//UNEXPECTED_timer:
-//    BNE UNEXPECTED_timer      // if not recognized, stop here
-//    BL ARM_TIM_ISR
+//   CMP R5, #29
 EXIT_IRQ:
 /* Write to the End of Interrupt Register (ICCEOIR) */
     STR R5, [R4, #0x10] // write to ICCEOIR
@@ -752,13 +751,16 @@ CONFIG_GIC:
 /* CONFIG_INTERRUPT (int_ID (R0), CPU_target (R1)); */
 /* To Do: you can configure different interrupts
    by passing their IDs to R0 and repeating the next 3 lines */
+   
+   MOV R0, #29            // KEY port (Interrupt ID = 29)
+    MOV R1, #1             // this field is a bit-mask; bit 0 targets cpu0
+    BL CONFIG_INTERRUPT
+	
     MOV R0, #73            // KEY port (Interrupt ID = 73)
     MOV R1, #1             // this field is a bit-mask; bit 0 targets cpu0
     BL CONFIG_INTERRUPT
 	
-	MOV R0, #29            // KEY port (Interrupt ID = 29)
-    MOV R1, #1             // this field is a bit-mask; bit 0 targets cpu0
-    BL CONFIG_INTERRUPT
+	
 
 /* configure the GIC CPU Interface */
     LDR R0, =0xFFFEC100    // base address of CPU Interface
@@ -828,13 +830,12 @@ KEY_ISR:
 ARM_TIM_ISR:
 	PUSH {LR}		
 	
-	MOV R0, #0x1				// R0 is the input for the clear method
-								// In this case, we're using the TIM0 timer so R0 should be 0001
-	BL ARM_TIM_clear_INT_ASM
 
 	LDR R0, =tim_int_flag
 	MOV R1, #1
 	STR R1, [R0]				// Set flag to 1
+	
+	BL ARM_TIM_clear_INT_ASM // clear interrupt
 
 	POP {LR}
 	BX LR
@@ -902,7 +903,7 @@ disable_PB_INT_ASM:
         POP {R1, R2}
         BX LR
 		
-	// read F bit
+// read F bit
 ARM_TIM_read_INT_ASM:
 	LDR R4, [R2, #12] // make R4 point to F bit
 	AND R4, R4, #1 // keep the last bit
