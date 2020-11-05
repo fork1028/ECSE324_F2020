@@ -65,79 +65,80 @@ ARM_TIM_clear_INT_ASM:
 	BX LR
 
 HEX_clear_ASM:
-	PUSH {R1-R8,LR}
-	LDR R1, =HEX0_3_BASE	// Set R1 to HEX0-3 address
-	MOV R3, #0			// Index of which hex we're at
-			
-clearloop:	
-	CMP R3, #6			// Check if when we're done iterating
-	BEQ Clear_DONE
-	AND R4, R0, #1		// Checks if the bit we're at is hot encoded
-	CMP R4, #1			// If yes, go to Clear (This branch clears the hex)
-	BLEQ clear
+ PUSH {R1-R8,LR}
+ LDR R1, =HEX0_3_BASE // read from 0_3 address
+ MOV R3, #0   
+   
+clearloop: 
+ CMP R3, #6   // check if all hex displays are iterated
+ BEQ cleardone
+ AND R4, R0, #1  
+ CMP R4, #1   
+ BLEQ clear
 
-	LSR R0, R0, #1 		// Shift the input right by 1 bit since the inputs is hot encoded
-	// So we move on to the next bit to check if that value (HEX) is 1 on line 19
-	ADD R3, R3, #1		// Increment counter (index)
-	B clearloop
+ LSR R0, R0, #1   
+ 
+ ADD R3, R3, #1  // counter++
+ B clearloop
 
-clear:		
-	CMP R3, #3			// Check if we're at the HEX 4 or 5
-	SUBGT R3, R3, #4	// Sets the counter to 0 or 1 when it's > 3 (the counter refers to HEX 4-5 when it's 0-1 after this is called)
-	LDRGT R1, =HEX4_5_BASE	// Set it to the the other disp HEX
-	LDR R2, [R1]		// Set R2 to address of HEX 4-5
-	LDR R5, =CLEAR_N	// Sets R5 to Clear_N variable
-	LSL R6, R3, #2		// Multiply R3 with 4
-	LDR R5, [R5, R6]	// Load R5 with the value at =Light + offset (R3*4)
-	// This mimicks the Rotate Left method that doesn't exist
-	AND R2, R2, R5		// AND R5 with the current HEX value to clear that particular HEX
-	STR R2, [R1]		// Store the result to change it physically
-	BX LR
-	
-HEX_write_ASM:	
-	MOV R10, R0				// Store copy of R0 (HEX_t)
-	MOV R9, R1				// Store copy of R1 (char val)		
-	
-	PUSH {R2-R8,LR}
-	BL HEX_clear_ASM		// Clear the HEX displays before writing to it
-	POP {R2-R8,LR}	
-	
-	MOV R0, R10				// Restore the initial value of R0 before the clear
+clear:  
+ CMP R3, #3   
+ SUBGT R3, R3, #4 
+ LDRGT R1, =HEX4_5_BASE // read from 4_5 address
+ LDR R2, [R1]  
+ LDR R5, =CLEAR 
+ LSL R6, R3, #2  
+ LDR R5, [R5, R6] 
+ 
+ AND R2, R2, R5  
+ STR R2, [R1]  
+ BX LR
+ 
+HEX_write_ASM: 
+ MOV R10, R0    
+ MOV R9, R1    
+ PUSH {R2-R8,LR}
+ BL HEX_clear_ASM  
+ POP {R2-R8,LR} 
+ 
+ MOV R0, R10    
 
-	PUSH {R1-R8,LR}
-	LDR R1, =HEX0_3_BASE		// Load location of the HEX0-3 into R1
-	MOV R3, #0				// Counter for HEX count
-	LDR R5, =NUM			// Set R5 to the first address of LIGHTS var (i.e address of .word 0x0000003F)
-	ADD R5, R5, R9, LSL #2	// From that address, add R9 (the HEX LED value we want to put) * 4 (must increment by multiples of 4 since words are 4bytes)
-	// This makes R5 point the HEX value that we want inject
-	B writeloop
+ PUSH {R1-R8,LR}
+ LDR R1, =HEX0_3_BASE  
+ MOV R3, #0    
+ LDR R5, =NUM   
+ ADD R5, R5, R9, LSL #2 // to go to the corresponding address
+ 
+ B writeloop
 
-writeloop:	
-	CMP R3, #1			// Checks when we're done iterating		
-	BEQ Write_DONE
-	AND R4, R0, #1		// Checks if the HEX needs to be written with One hot encoded bit
-	CMP R4, #1
-	BLEQ write
+writeloop: 
+ CMP R3, #6   // check if all hex displays are iterated 
+ BEQ writedone
+ AND R4, R0, #1  
+ CMP R4, #1
+ BLEQ write
 
-	LSR R0, R0, #1 		// Shift the input right by 1 bit since the input is one hot encoded
-	// So we move on to the next bit to check if that value (HEX) is 1
-	ADD R3, R3, #1		// Increment counter
-	B writeloop
+ LSR R0, R0, #1   
+ ADD R3, R3, #1  // counter++
+ B writeloop
 
-write:		
-	LDR R2, [R1]		// Set R2 to the value of R1 to get the value of the hex at that time
-	LDR R7, [R5]		// Set R7 to the proper HEX LED value (e.g. 0x0000004F = 3 in HEX LED)
-	LSL R6, R3, #3		// Multiply the counter by 2^3 (8 bits)
-	LSL R7, R7, R6		// Shift the HEX LED value to the proper HEX using the counter multiplied by 8 (e.g 0x0000004F -> 0x004F0000)
-	ORR R2, R2, R7		// OR the current HEX values of the board with R7 to write the HEX value onto that HEX address
-	STR R2, [R1]		// Store the new HEX values to the address. This effectively changes the HEX on the board
-	BX LR
-	
-Clear_DONE:	POP {R1-R8, LR}
-			BX LR
-			
-Write_DONE: POP {R1-R8, LR}
-			BX LR
+write:  
+ CMP R3, #3   
+ SUBGT R3, R3, #4 
+ LDRGT R1, =HEX4_5_BASE 
+ LDR R2, [R1]  
+ LDR R7, [R5]  
+ LSL R6, R3, #3  
+ LSL R7, R7, R6  
+ ORR R2, R2, R7  
+ STR R2, [R1]  
+ BX LR
+ 
+cleardone: POP {R1-R8, LR}
+   BX LR
+   
+writedone: POP {R1-R8, LR}
+   BX LR
 	
 			
 NUM:		
@@ -158,7 +159,7 @@ NUM:
 	.word 0x00000079 //(01111001)b = E
 	.word 0x00000071 //(01110001)b = F
 	
-CLEAR_N:	.word 0xFFFFFF00
+CLEAR:	.word 0xFFFFFF00
 			.word 0xFFFF00FF
 			.word 0xFF00FFFF
 			.word 0x00FFFFFF
