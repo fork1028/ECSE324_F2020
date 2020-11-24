@@ -11,38 +11,38 @@ end:
 @ TODO: copy VGA driver here.
 VGA_draw_point_ASM:
 	PUSH {R3-R12}
-	CMP R1, #239
+	CMP R1, #239 // check if y exceeds 240 height
+	BXGT LR 
+	LDR R3, =319	// load 319 immediate value to r3			
+	CMP R0, R3		// check if x exceeds 320 width
 	BXGT LR
-	LDR R3, =319				
-	CMP R0, R3					
-	BXGT LR
-	LDR R3, =VGA_pixelbuff		// R3 holds the base address of pixel buffer
-	ADD R3, R3, R0, LSL #1		// x coordinate determined
-	ADD R3, R3, R1, LSL #10		// y coordinate determined
-	STRH R2, [R3]				
+	LDR R3, =VGA_pixelbuff		// R3 points to the base address of pixel buffer
+	ADDS R3, R3, R0, LSL #1		// x coordinate determined x<<1
+	ADDS R3, R3, R1, LSL #10		// y coordinate determined y<<10
+	STRH R2, [R3]				// R2 stores the char
 	POP {R3-R12}
 	BX LR
 	
 
 VGA_clear_pixelbuff_ASM:
 	PUSH {R4-R12}	
-	SUB R0,R0,R0						// X counter
-	SUB R2,R2,R2
+	SUBS R0, R0, R0					// clear x
+	SUBS R2, R2, R2					// clear c
 	LDR R3, =VGA_pixelbuff
 
-X_PIXEL:
-	SUB R1,R1,R1						// Y counter
-	ADD R4, R3, R0, LSL #1		
-Y_PIXEL:
-	ADD R5, R4, R1, LSL #10			
+ClearXPixel:
+	SUBS R1, R1, R1					// clear y
+	ADDS R4, R3, R0, LSL #1			// x<<1
+ClearYPixel:
+	ADDS R5, R4, R1, LSL #10			// y<<10
 	
-	STRH R2, [R5]					
-	ADD R0, R0, #1					// x counter increment	
-	CMP R0, #320					
-	BLT X_PIXEL
-	ADD R1, R1, #1					// y counter increment
-	CMP R1, #240					
-	BLT Y_PIXEL				
+	STRH R2, [R5]					// clear the content at y coordinate
+	ADDS R0, R0, #1					// x++
+	CMP R0, #320					// check if x exceeds 320 pixels
+	BLT ClearXPixel					
+	ADDS R1, R1, #1					// y++
+	CMP R1, #240					// check if y exceeds 240 pixels
+	BLT ClearYPixel			
 	POP {R4-R12}
 	BX LR
 
@@ -50,62 +50,60 @@ Y_PIXEL:
 	
 VGA_write_char_ASM:
 	PUSH {R3-R12}
-	CMP R1, #59
+	CMP R1, #59  // check if y exceeds 60 pixels
 	BXGT LR
-	CMP R0, #79			
+	CMP R0, #79	  // check if x exceeds 80 pixels
 	BXGT LR
-
-	LDR R3, =VGA_charbuff		// R3 holds the base address of character buffer
-	LSL R1, R1, #7 // adjust offset in y to the correct value (offset in y is specified starting from bit 7)
-	ADD R3, R3, R1 // increment in y direction
-	ADD R3, R3, R0 // increment in x direction
-	STRB R2, [R3]
+	LDR R3, =VGA_charbuff		// R3 points to base address of character buffer
+	ADDS R3, R3, R0				// x coordinate determined x
+	ADDS R3, R3, R1, LSL #7		// y coordinate determined y<<7
+	STRB R2, [R3]			// write R2 to the address	
 	POP {R3-R12}
 	BX LR
 	
 
 VGA_clear_charbuff_ASM:
 	PUSH {R4-R12} 
-	SUB R0,R0,R0				// x counter				
-	SUB R2,R2,R2
+	SUBS R0, R0, R0				// clear x
+	SUBS R2, R2, R2				// clear c
 	LDR R3, =VGA_charbuff
 
-X_CHAR: 
-	SUB R1,R1,R1				// y counter
-	ADD R4, R3, R0			
+ClearXChar: 
+	SUBS R1,R1,R1				// clear y
+	ADDS R4, R3, R0				// x
 
-Y_CHAR: 
-	ADD R5, R4, R1, LSL #7	
-	
-	STRB R2, [R5]			
-	ADD R0, R0, #1			// x counter increment	
-	CMP R0, #80			
-	BLT X_CHAR
-	ADD R1, R1, #1			// y counter increment
-	CMP R1, #60				
-	BLT Y_CHAR
+ClearYChar: 
+	ADDS R5, R4, R1, LSL #7		// y<<7
+	STRB R2, [R5]			// clear the content at y coordinate
+	ADDS R0, R0, #1			// x++
+	CMP R0, #80				// check if x exceeds 80 pixels
+	BLT ClearXChar				
+	ADDS R1, R1, #1			// y++
+	CMP R1, #60				// check if y exceeds 60 pixels
+	BLT ClearYChar
 	POP {R4-R12}
 	BX LR
 
 @ TODO: insert PS/2 driver here.
-
 read_PS2_data_ASM:
 	PUSH {R1-R5}
-	LDR R4, =PS2_data
-	LDR R5, [R4]	
-	ANDS R3, R5, #0x8000 
-	BNE RETURN  
-	MOV R0, #0	
+	LDR R4, =PS2_data // points to the PS2_DATA address
+	LDR R5, [R4]   // load the contents to R5
+	LSR R3, R5, #15  // (*(volatile int *)0xff200100) >> 15)
+	ANDS R3, R3, #0x1  // ((*(volatile int *)0xff200100) >> 15) & 0x1
+	CMP R3, #0  // compare the RVALID bit to be 0/1
+	BNE VALID
+	MOV R0, #0    // if invalid, return 0
 	POP {R1-R5}
 	BX LR
-	
+ 
 
-RETURN: 
+VALID: 
 	AND R2, R5, #0xFF
 	STRB R2, [R0]
-	MOV R0, #1
+	MOV R0, #1  // return 1
 	POP {R1-R5}
-	BX LR	
+	BX LR
 	
 write_hex_digit:
         push    {r4, lr}
